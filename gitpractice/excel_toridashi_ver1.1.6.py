@@ -143,10 +143,8 @@ def add_range_fields():
     button_frame = ttk.Frame(frame)
     button_frame.pack(anchor="center", pady=(10, 5))
 
-    style.configure("Small.TButton", font=("", 8), padding=(2,5))  # フォントサイズを小さく設定
-
     # 削除ボタン
-    remove_button = ttk.Button(button_frame, text="△削除する", command=lambda: remove_range_fields(frame))
+    remove_button = ttk.Button(button_frame, text="△削除する", command=lambda: remove_range_fields(frame), style="Custom.TButton")
     remove_button.pack(side="left", padx=(5, 5))
 
     # 上に移動ボタン
@@ -646,21 +644,19 @@ def preview_with_navigation(all_sheets, initial_data_cache):
     nav_frame = tk.Frame(preview_window, bg=preview_window["bg"])  # 親ウィンドウと同じ背景色
     nav_frame.pack(fill=tk.X, pady=10)
 
-    prev_button = ttk.Button(nav_frame, text="◀ 前のシート", command=lambda: update_preview(current_index - 1))
+    prev_button = ttk.Button(nav_frame, text="◀ 前のシート", command=lambda: update_preview(current_index - 1), style="Custom.TButton")
     prev_button.pack(side=tk.LEFT, padx=10)
-    next_button = ttk.Button(nav_frame, text="次のシート ▶", command=lambda: update_preview(current_index + 1))
+    next_button = ttk.Button(nav_frame, text="次のシート ▶", command=lambda: update_preview(current_index + 1), style="Custom.TButton")
     next_button.pack(side=tk.RIGHT, padx=10)
 
     # ボタンを含む共通フレーム
-    button_frame = ttk.Frame(preview_window)
+    button_frame = tk.Frame(preview_window, bg=preview_window["bg"])
     button_frame.pack(pady=10)
 
     # 閉じるボタン
-    ttk.Button(button_frame, text="閉じる", command=preview_window.destroy).pack(side="left", padx=5)
-
+    ttk.Button(button_frame, text="閉じる", command=preview_window.destroy, style="Custom.TButton").pack(side="left", padx=5)
     # 出力ボタン
     ttk.Button(button_frame, text="出力", command=export_preview_data, style="Highlight.TButton").pack(side="left", padx=5)
-
 
     # 初期化
     current_index = 0
@@ -829,7 +825,7 @@ def center_window2(parent, window, width=300, height=100):
 def toggle_topmost():
     root.attributes("-topmost", is_topmost.get())
 
-def draw_dashed_line(parent, width=2, color="#8595A6", pady=8, before=None):
+def draw_dashed_line(parent, width=2, color="#557CAE", pady=8, before=None):
     """セクション間に中央揃えの点線を引く"""
     canvas = tk.Canvas(parent, height=2, bg=background_color, highlightthickness=0)
     canvas.pack(fill="x", pady=pady, before=before)
@@ -837,7 +833,7 @@ def draw_dashed_line(parent, width=2, color="#8595A6", pady=8, before=None):
     def draw_line():
         canvas.delete("all")
         canvas_width = canvas.winfo_width()
-        canvas.create_line(50, 1, canvas_width - 30, 1, fill=color, width=width, dash=(4, 4))
+        canvas.create_line(50, 1, canvas_width - 50, 1, fill=color, width=width, dash=(4, 4))
 
     canvas.after(50, draw_line)
     canvas.bind("<Configure>", lambda event: draw_line())
@@ -861,7 +857,7 @@ def draw_dynamic_separator(parent, after=None, pady=8):
     def draw_line():
         canvas.delete("all")
         canvas_width = canvas.winfo_width()
-        canvas.create_line(50, 1, canvas_width - 30, 1, fill="#8595A6", width=2, dash=(4, 4))
+        canvas.create_line(50, 1, canvas_width - 50, 1, fill="#557CAE", width=2, dash=(4, 4))
 
     canvas.after(50, draw_line)
     canvas.bind("<Configure>", lambda event: draw_line())
@@ -911,6 +907,10 @@ root.title("Excelセルの値取り出し")
 # photo = my_icon.get_photo_image4icon()  # PhotoImageオブジェクトの作成
 # root.iconphoto(False, photo)         # アイコンの設定
 
+# 背景色の設定
+background_color = "#DEDEDE"  # ここで背景色を指定
+
+#####アイコンとか、画像とか#####
 #アイコン設定
 def temp_path(relative_path):
     try:
@@ -950,9 +950,7 @@ sheet_mode = tk.IntVar(value=0)  # デフォルトは「すべてのシート」
 style = ttk.Style(root)
 style.theme_use('clam')  # 'clam', 'alt', 'default', 'classic' などから選べます
 
-
 # 背景色を全体に適用
-background_color = style.lookup("TButton", "background")
 root.configure(bg=background_color)
 
 # ウィンドウを中央に配置
@@ -969,13 +967,12 @@ main_frame = ttk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=1)
 
 # Canvasの背景色を設定
-canvas = tk.Canvas(main_frame)
+canvas = tk.Canvas(main_frame, bg=background_color)
 canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
 
 # 縦スクロールバーの設定
 scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
 scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
 
 # 背景色を設定したスクロール可能なフレーム
 scrollable_frame = ttk.Frame(canvas)
@@ -1011,31 +1008,23 @@ style.configure("TButton", background=background_color)
 
 # スタイル設定：buttonの色とか、いろいろ。です
 style.configure("TEntry", fieldbackground="white", foreground="black")
-style.map("TEntry", fieldbackground=[("disabled", "#d3d3d3")], foreground=[("disabled", "#a3a3a3")])
+style.map("TEntry", fieldbackground=[("disabled", "#DEDEDE")], foreground=[("disabled", "#a3a3a3")])
 style.configure("Bold.TLabel", font=("Helvetica", 9, "bold"))  # フォントを太字に設定
 style.configure("SmallFont.TLabel", font=("", 8))  # フォント名はデフォルトでサイズだけ小さく
-style.configure("Highlight.TButton", background="#5CA9DD", foreground="white", font=("Helvetica", 9, "bold"))
+style.configure("Small.TButton",background="#F7F4F0", font=("", 8), padding=(2,5))  # フォントサイズを小さく設定
+style.map("Small.TButton",
+          background=[("active", "#E4EAF3")],  # ホバー時の背景色
+          foreground=[("active", "black")])   # ホバー時の文字色
+style.configure("Highlight.TButton", background="#557CAE", foreground="white", font=("Helvetica", 9, "bold"))
 style.map("Highlight.TButton",
-          background=[('active', '#97e6ce')],   
+          background=[('active', '#95C0D1')],   
           foreground=[('active', 'white')])    # ホバー時の文字色を白に設定
-
 style.configure("Custom.TButton", 
-                background="#EEEBE7",  # 背景色
+                background="#F7F4F0",  # 背景色
                 borderwidth=2,)
-
 style.map("Custom.TButton", 
-          background=[("active", "#388E3C")],  # ホバー時の背景色
-          foreground=[("active", "white")])   # ホバー時の文字色
-
-style.configure(
-    "Custom.TEntry",
-    padding=3,                  # 内側の余白
-    fieldbackground="#FFFFFF",    # 入力欄の背景色
-    borderwidth=3,              # 枠線の太さ
-    relief="ridge",             # 枠線のスタイル（'flat', 'solid', 'ridge' など）
-    foreground="black"          # 入力文字の色
-)
-
+          background=[("active", "#E4EAF3"), ("disabled", "#D9D9D9")],  # ホバー時と非活性時の背景色
+          foreground=[("active", "black"), ("disabled", "#A0A0A0")])   # ホバー時と非活性時の文字色
 # ラベルとアイコンをまとめるフレーム
 label_with_icon_frame_1 = ttk.Frame(scrollable_frame)
 label_with_icon_frame_1.pack(anchor="center", pady=(0, 5))  # 余白を調整
@@ -1060,10 +1049,10 @@ Tooltip(tooltip_icon_label_1, (
 ))
 
 # 「ファイル選択」と「クリア」ボタンを同じ行に配置
-file_button_frame = ttk.Frame(scrollable_frame, style="TFrame")
+file_button_frame = ttk.Frame(scrollable_frame)
 file_button_frame.pack(anchor="center", pady=5)
 # ファイル選択ボタン
-file_select_button = ttk.Button(file_button_frame, text="ファイル選択", command=select_files)
+file_select_button = ttk.Button(file_button_frame, text="ファイル選択", command=select_files, style="Custom.TButton")
 file_select_button.pack(side="left", padx=5)
 
 
@@ -1115,9 +1104,9 @@ Tooltip(tooltip_icon_label, (
     "　　➡「2.損益」「★損益表」「損益」などの名前がついたシートが対象になります"
 ))
 # ラジオボタンを中央に配置しつつ左揃えにするためのフレーム
-radio_frame = ttk.Frame(scrollable_frame, style="TFrame")
+radio_frame = ttk.Frame(scrollable_frame)
 radio_frame.pack(anchor="center")  # 全体として中央に配置
-ttk.Radiobutton(radio_frame, text="すべてのシート(非表示シートを含む)",variable=sheet_mode, value=0, command=toggle_sheet_entry).pack(anchor="w")
+ttk.Radiobutton(radio_frame, text="すべてのシート(非表示シートを含む)", variable=sheet_mode, value=0, command=toggle_sheet_entry).pack(anchor="w")
 ttk.Radiobutton(radio_frame, text="すべてのシート(非表示シートは含まない)", variable=sheet_mode, value=2, command=toggle_sheet_entry).pack(anchor="w")
 ttk.Radiobutton(radio_frame, text="特定の名前を含むシートのみ", variable=sheet_mode, value=1, command=toggle_sheet_entry).pack(anchor="w")
 
@@ -1126,7 +1115,7 @@ sheet_frame = ttk.Frame(scrollable_frame)
 sheet_frame.pack(anchor="center", pady=(10, 5))
 # ラベルとエントリーフィールドを同じ行に配置
 ttk.Label(sheet_frame, text="シート名を入力(部分一致):", padding=(0, 0, 5, 0)).pack(side="left")
-sheet_entry = ttk.Entry(sheet_frame, style="Custom.TEntry", width=15)
+sheet_entry = ttk.Entry(sheet_frame, style="TEntry", width=15)
 sheet_entry.pack(side="left")
 sheet_entry.config(state="disabled")  # 初期状態ではグレーアウト（無効化）
 
@@ -1156,7 +1145,6 @@ Tooltip(tooltip_icon_label_3, (
     "　　 （上から指定した順番に結合されます）\n\n"
     "【△削除する】ボタンで、追加した範囲を削除できます。\n"
     "【↑】【↓】ボタンで、範囲の順位を調整できます。"
-
 ))
 
 # 結合方向を選択するラジオボタン
@@ -1185,22 +1173,41 @@ preview_button = ttk.Button(button_frame, text="プレビュー", command=get_ex
 preview_button.pack(side="left", padx=(5, 0))
 
 # 値を取得ボタンの中央揃え
-get_value_button = ttk.Button(scrollable_frame, text=" >>値を取り出す！<<\n　　 (Excel出力)", command=get_excel_values, style="Highlight.TButton")
-get_value_button.pack(anchor="center",pady=(5,5),ipady=5,ipadx=5)
-# ttk.Label(scrollable_frame, text="※内容は都度ご検証の上ご使用ください<(_ _)>※", style="SmallFont.TLabel").pack(anchor="center")
+get_value_button = ttk.Button(scrollable_frame, text=">> Excelで出力 <<", command=get_excel_values, style="Highlight.TButton")
+get_value_button.pack(anchor="center",pady=(5,5),ipady=10,ipadx=20)
 
-# 最前面固定のチェックボックスを追加
 # 最前面固定のチェックボックスの状態を管理する変数
 is_topmost = tk.BooleanVar(value=True)  # 初期値は「True」（最前面固定）
-# 最前面固定のチェックボックスを追加（tk.Checkbuttonを使用）
-tk.Checkbutton(scrollable_frame, text="ウィンドウを最前面に固定", variable=is_topmost, command=toggle_topmost, bg=background_color).pack(anchor="center", pady=(5, 10))
+# 最前面固定のチェックボックスと画像をまとめるフレームを作成
+bottom_frame = ttk.Frame(scrollable_frame, style="TFrame")  # フレーム作成
+bottom_frame.pack(anchor="se",fill="x", pady=0)  # 下寄せ、横幅いっぱいに
+
+# 最前面固定のチェックボックスを追加
+is_topmost = tk.BooleanVar(value=True)  # 初期値はTrue（最前面固定）
+topmost_checkbox = tk.Checkbutton( bottom_frame, text="ウィンドウを最前面に固定", variable=is_topmost, command=toggle_topmost, bg=background_color)
+topmost_checkbox.pack(side="left", padx=(5, 5))  # 左寄せ
+
+# 画像を読み込む
+image = Image.open(icon_path)
+image = image.resize((40, 40), Image.LANCZOS)  # サイズ調整
+photo = ImageTk.PhotoImage(image)
+
+# Labelに画像を配置（右寄せ）
+image_label = tk.Label(bottom_frame, image=photo, bg=background_color)
+image_label.photo = photo  # 参照を保持
+image_label.pack(side="right", padx=(5, 5))  # 右寄せ
+
+# 画像をクリックしてバージョン情報を表示する
+def show_version_info():
+    messagebox.showinfo("管理用", "1.2.0")
+image_label.bind("<Button-1>", lambda event: show_version_info())
 
 # + ボタンで範囲を追加
 add_range_fields()
 
-# 結果のメッセージを表示するラベル
-message_label = ttk.Label(scrollable_frame, text="")
-message_label.pack(anchor="center")
+# # 結果のメッセージを表示するラベル
+# message_label = ttk.Label(scrollable_frame, text="")
+# message_label.pack(anchor="center")
 
 # ウィンドウを表示させる
 root.iconbitmap(logo)  # アイコンファイルのパスを設定
