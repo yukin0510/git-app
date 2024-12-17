@@ -97,6 +97,7 @@ def move_range_frame_down(frame):
 
 # 範囲フィールドを再描画する関数
 def re_draw_range_fields():
+    global separator_line
     # 既存の範囲フィールドを一旦すべて削除
     for entry in range_frames:
         entry['frame'].pack_forget()
@@ -105,9 +106,9 @@ def re_draw_range_fields():
     for entry in range_frames:
         entry['frame'].pack(anchor="center", before=get_value_button)
 
-
 # 範囲フィールドを追加する関数に【↑】【↓】ボタンを追加
 def add_range_fields():
+    global dynamic_separator
     frame = ttk.Frame(scrollable_frame)
     frame.pack(anchor="center", before=get_value_button)
 
@@ -124,7 +125,6 @@ def add_range_fields():
     ttk.Label(col_frame, text="～").pack(side="left")
     col_end_entry = ttk.Entry(col_frame, width=10, validate='key', validatecommand=vcmd_col)
     col_end_entry.pack(side="left", padx=(5, 0))
-
 
     # 行の入力バリデーションの設定
     vcmd_row = (root.register(validate_row_input), '%P')
@@ -164,16 +164,17 @@ def add_range_fields():
         'row_start_entry': row_start_entry,
         'row_end_entry': row_end_entry
     })
-
+    # 点線を最後の範囲フィールドの直下に描画
+    draw_dynamic_separator(scrollable_frame, after=frame)
     # Canvasのスクロール領域を更新
     scrollable_frame.update_idletasks()
     canvas.config(scrollregion=canvas.bbox("all"))
 
     toggle_merge_options_state()  # 結合方向の状態を更新
 
-
 # 範囲フィールドを削除する関数
 def remove_range_fields(frame):
+    global dynamic_separator
     if len(range_frames) == 1:
         messagebox.showerror("エラー", "範囲をすべて削除することはできません")
     else:
@@ -182,6 +183,15 @@ def remove_range_fields(frame):
                 range_frames.remove(entry)
                 frame.destroy()
                 break
+        # 点線を再配置（最後の範囲フィールドの下に描画）
+        if range_frames:
+            last_frame = range_frames[-1]['frame']
+            draw_dynamic_separator(scrollable_frame, after=last_frame)
+        else:
+            # すべての範囲フィールドが削除された場合、点線を非表示にする
+            if dynamic_separator:
+                dynamic_separator.pack_forget()
+                dynamic_separator = None
         # 結合方向の状態を更新
         toggle_merge_options_state()
     scrollable_frame.update_idletasks()
@@ -214,6 +224,13 @@ def validate_range_fields():
     空欄がある場合はエラーメッセージを表示し、False を返す。
     """
     error_messages = []
+
+    # シート名入力のバリデーション
+    if sheet_mode.get() == 1:  # 特定の名前を含むシートのみ
+        sheet_name = sheet_entry.get()
+        if not sheet_name.strip():
+            error_messages.append("シート名を入力してください。")
+
     for idx, entry in enumerate(range_frames, start=1):
         col_start = entry['col_start_entry'].get()
         col_end = entry['col_end_entry'].get()
@@ -812,6 +829,77 @@ def center_window2(parent, window, width=300, height=100):
 def toggle_topmost():
     root.attributes("-topmost", is_topmost.get())
 
+def draw_dashed_line(parent, width=2, color="#A9A9A9", pady=8, before=None):
+    """セクション間に中央揃えの点線を引く"""
+    canvas = tk.Canvas(parent, height=2, bg=background_color, highlightthickness=0)
+    canvas.pack(fill="x", pady=pady, before=before)
+
+    def draw_line():
+        canvas.delete("all")
+        canvas_width = canvas.winfo_width()
+        canvas.create_line(50, 1, canvas_width - 50, 1, fill=color, width=width, dash=(4, 4))
+
+    canvas.after(50, draw_line)
+    canvas.bind("<Configure>", lambda event: draw_line())
+    return canvas  # 作成したCanvasを返却する
+
+dynamic_separator = None  # 動的な点線を管理するための変数
+def draw_dynamic_separator(parent, after=None, pady=8):
+    """最後の範囲入力フィールドの真下に1本だけ点線を引く"""
+    global dynamic_separator
+
+    # 既存の点線があれば削除
+    if dynamic_separator:
+        dynamic_separator.pack_forget()
+
+    # 新しい点線を描画
+    canvas = tk.Canvas(parent, height=2, bg=background_color, highlightthickness=0)
+    canvas.pack(fill="x", pady=pady, after=after)
+    dynamic_separator = canvas
+
+    # キャンバス中央に線を描画
+    def draw_line():
+        canvas.delete("all")
+        canvas_width = canvas.winfo_width()
+        canvas.create_line(50, 1, canvas_width - 50, 1, fill="#A9A9A9", width=2, dash=(4, 4))
+
+    canvas.after(50, draw_line)
+    canvas.bind("<Configure>", lambda event: draw_line())
+
+# ツールチップクラス
+class Tooltip:
+    """ツールチップを表示するクラス"""
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+
+        # イベントバインド
+        self.widget.bind("<Enter>", self.show_tooltip)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+
+    def show_tooltip(self, event=None):
+        """ツールチップを表示"""
+        x, y, _, _ = self.widget.bbox("insert")
+        x += self.widget.winfo_rootx() + 20
+        y += self.widget.winfo_rooty() + 20
+
+        # 新しいウィンドウでツールチップを作成
+        self.tooltip_window = tk.Toplevel(self.widget)
+        self.tooltip_window.wm_overrideredirect(True)  # ウィンドウの枠を非表示
+        self.tooltip_window.wm_geometry(f"+{x}+{y}")
+        self.tooltip_window.wm_attributes("-topmost", True)  # 常に最前面に表示
+
+        # ツールチップ内のラベル
+        label = tk.Label(self.tooltip_window, text=self.text, bg="#ffffe0", fg="black",
+                         relief="solid", borderwidth=1, font=("Helvetica", 9, "normal"),anchor="w",justify="left")
+        label.pack(ipadx=5, ipady=3, fill="both")
+
+    def hide_tooltip(self, event=None):
+        """ツールチップを非表示"""
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
 
 ####################################################################
 #GUIのセットアップ
@@ -849,6 +937,15 @@ try:
 except Exception as e:
     messagebox.showerror("エラー", f"画像の読み込みに失敗しました: {e}")
 
+help_path = temp_path("help.png")  # 正しいパスを取得
+help_image = None  # グローバル変数としてアイコン画像を保持
+try:
+    help_image_pil = Image.open(help_path)  # help.png を正しく読み込む
+    help_image_pil = help_image_pil.resize((18, 18), Image.LANCZOS)  # サイズ調整
+    help_image = ImageTk.PhotoImage(help_image_pil)  # PhotoImageオブジェクトを作成
+except Exception as e:
+    messagebox.showerror("エラー", f"画像の読み込みに失敗しました: {e}")
+
 # ここで変数を定義（rootの作成後に実行）
 sheet_mode = tk.IntVar(value=0)  # デフォルトは「すべてのシート」
 
@@ -868,7 +965,6 @@ root.attributes("-topmost", True)
 
 # ウィンドウを再表示する
 root.deiconify()
-
 
 # スクロール可能なフレームを作成
 main_frame = ttk.Frame(root)
@@ -915,8 +1011,6 @@ style.configure("TFrame", background=background_color)
 style.configure("TLabel", background=background_color)
 style.configure("TButton", background=background_color)
 
-
-
 # スタイル設定：buttonの色とか、いろいろ。です
 style.configure("TEntry", fieldbackground="white", foreground="black")
 style.map("TEntry", fieldbackground=[("disabled", "#d3d3d3")], foreground=[("disabled", "#a3a3a3")])
@@ -927,16 +1021,36 @@ style.map("Highlight.TButton",
           background=[('active', '#97e6ce')],   
           foreground=[('active', 'white')])    # ホバー時の文字色を白に設定
 
+# ラベルとアイコンをまとめるフレーム
+label_with_icon_frame_1 = ttk.Frame(scrollable_frame)
+label_with_icon_frame_1.pack(anchor="center", pady=(0, 5))  # 余白を調整
 
-# ファイル選択部分の中央揃え
-ttk.Label(scrollable_frame, text="① Excelファイルを選択してください(複数選択可)", padding=(0, 10, 0, 0), style="Bold.TLabel").pack(anchor="center")
-ttk.Label(scrollable_frame, text="※再度<ファイル選択>で追加、deleteキーで削除できます", style="SmallFont.TLabel", padding=(0, 0, 0, 5)).pack(anchor="center")
+# ラベルの追加
+ttk.Label(label_with_icon_frame_1, text="➊ Excelファイルを選択してください(複数選択可)", 
+          padding=(0, 5, 0, 0), style="Bold.TLabel").pack(side="left")
+
+# ツールチップアイコン（help_imageを使用）
+tooltip_icon_label_1 = ttk.Label(label_with_icon_frame_1, image=help_image)
+tooltip_icon_label_1.pack(side="left", padx=(5, 0))
+
+# ツールチップをアイコンに追加
+Tooltip(tooltip_icon_label_1, (
+    "【ファイル選択】ボタンからExcelファイルを選択してください。\n"
+    "Ctrl+クリックで複数のファイルを選択できます。\n\n"
+    "一度選択したあとでも、【ファイル選択】でさらに追加できます。\n"
+    "選択したファイルはキーボードのDeleteキーで削除できます。\n"
+    "【×クリア】を押すと、選択中のすべてのリストを削除します。\n\n"
+    "※選択できるファイルは【.xlsx】【.xlsm】のみです\n"
+    "※パスワード付きのファイルは処理できません"
+))
 
 # 「ファイル選択」と「クリア」ボタンを同じ行に配置
 file_button_frame = ttk.Frame(scrollable_frame)
 file_button_frame.pack(anchor="center", pady=5)
 # ファイル選択ボタン
-ttk.Button(file_button_frame, text="ファイル選択", command=select_files).pack(side="left", padx=5)
+file_select_button = ttk.Button(file_button_frame, text="ファイル選択", command=select_files)
+file_select_button.pack(side="left", padx=5)
+
 
 # クリアボタン
 ttk.Button(file_button_frame, text="✖　クリア", command=clear_file_list, style="Small.TButton").pack(side="left", padx=2)
@@ -964,9 +1078,27 @@ file_list.bind("<Delete>", delete_selected_files)
 x_scrollbar.config(command=file_list.xview)
 y_scrollbar.config(command=file_list.yview)
 
-# シート選択ラジオボタン
-# シート選択ラジオボタン
-ttk.Label(scrollable_frame, text="② 処理パターンを選択してください", padding=10, style="Bold.TLabel").pack(anchor="center")
+# 点線を描画
+draw_dashed_line(scrollable_frame)
+
+####ファイル選択部分####
+# ラベルとアイコンをまとめるフレーム
+label_with_icon_frame = ttk.Frame(scrollable_frame)
+label_with_icon_frame.pack(anchor="center", pady=2)
+# ラベルの追加
+ttk.Label(label_with_icon_frame, text="➋ 処理パターンを選択してください", padding=5, style="Bold.TLabel").pack(side="left")
+# ツールチップアイコン（help_imageを使用）
+tooltip_icon_label = ttk.Label(label_with_icon_frame, image=help_image)
+tooltip_icon_label.pack(side="left", padx=(5, 0))
+# ツールチップをアイコンに追加
+Tooltip(tooltip_icon_label, (
+    "処理するExcelシートのパターンを選択してください。\n"
+    "すべてのシートまたは特定のシートを処理対象にできます。\n\n"
+    "※「特定の名前を含むシートのみ」\n"
+    "　 指定した文字列をシート名に含むシートが処理対象となります\n"
+    "　 例）「損益」と入力\n"
+    "　　➡「2.損益」「★損益表」「損益」などの名前がついたシートが対象になります"
+))
 # ラジオボタンを中央に配置しつつ左揃えにするためのフレーム
 radio_frame = ttk.Frame(scrollable_frame)
 radio_frame.pack(anchor="center")  # 全体として中央に配置
@@ -983,16 +1115,39 @@ sheet_entry = ttk.Entry(sheet_frame, style="TEntry", width=15)
 sheet_entry.pack(side="left")
 sheet_entry.config(state="disabled")  # 初期状態ではグレーアウト（無効化）
 
-# ttk.Label(scrollable_frame, text="※指定した文字列を含むシートが処理対象となります", style="SmallFont.TLabel", padding=(0, 5, 0, 0)).pack(anchor="center")
-# ttk.Label(scrollable_frame, text="例）「損益」と入力　→　「2.損益」「損益表」シートが対象", style="SmallFont.TLabel").pack(anchor="center")
+# 点線を描画
+draw_dashed_line(scrollable_frame)
 
-# 最初の範囲選択フィールドを追加
-ttk.Label(scrollable_frame, text="③ 取り出すセル範囲を入力してください:", padding=(0, 15, 0, 0), style="Bold.TLabel").pack(anchor="center")
+# ラベルとアイコンをまとめるフレーム
+label_with_icon_frame_3 = ttk.Frame(scrollable_frame)
+label_with_icon_frame_3.pack(anchor="center", pady=(5, 5))  # 余白を調整
+
+# ラベルの追加
+ttk.Label(label_with_icon_frame_3, text="➌ 取り出すセル範囲を入力してください",padding=(0, 5, 0, 0), style="Bold.TLabel").pack(side="left")
+
+# ツールチップアイコン（help_imageを使用）
+tooltip_icon_label_3 = ttk.Label(label_with_icon_frame_3, image=help_image)
+tooltip_icon_label_3.pack(side="left", padx=(5, 0))
+
+# ツールチップをアイコンに追加
+Tooltip(tooltip_icon_label_3, (
+    "取り出したいセル範囲を入力してください。\n"
+    "例）C～R、10～20　/　W～W、3～3　\n\n"
+    "【プレビュー】を押すと、指定した範囲がイメージ通りか確認できます。\n\n"
+    "【＋範囲を追加】を押すと、範囲を複数指定できます。\n\n"
+    "　※複数指定時の結合パターン\n"
+    "　　「縦に結合」：取り出した範囲を縦(上→下)に結合します。\n"
+    "　　「横に結合」：取り出した範囲を横(左→右)に結合します。\n"
+    "　　 （上から指定した順番に結合されます）\n\n"
+    "【△削除する】ボタンで、追加した範囲を削除できます。\n"
+    "【↑】【↓】ボタンで、範囲の順位を調整できます。"
+
+))
 
 # 結合方向を選択するラジオボタン
 merge_mode = tk.StringVar(value="vertical")  # 初期値は「縦に結合」
 
-# 結合方向ラジオボタン用フレーム
+# 結合方向ラジオボタン用フレーム➌➌
 merge_frame = ttk.Frame(scrollable_frame)
 merge_frame.pack(anchor="center", pady=(5, 5))
 
@@ -1005,7 +1160,7 @@ horizontal_radio.pack(side="left", padx=(5, 0))
 
 # ボタンを横に並べるためのフレーム
 button_frame = ttk.Frame(scrollable_frame)
-button_frame.pack(anchor="center", pady=(10, 5))
+button_frame.pack(anchor="center", pady=(5, 5))
 
 # 範囲を追加ボタン（左側）
 ttk.Button(button_frame, text="＋範囲を追加", command=add_range_fields).pack(side="left", padx=(0, 5))
@@ -1016,7 +1171,7 @@ preview_button.pack(side="left", padx=(5, 0))
 
 # 値を取得ボタンの中央揃え
 get_value_button = ttk.Button(scrollable_frame, text=" >>値を取り出す！<<\n　　 (Excel出力)", command=get_excel_values, style="Highlight.TButton")
-get_value_button.pack(anchor="center",pady=(10,5),ipady=5,ipadx=5)
+get_value_button.pack(anchor="center",pady=(5,5),ipady=5,ipadx=5)
 # ttk.Label(scrollable_frame, text="※内容は都度ご検証の上ご使用ください<(_ _)>※", style="SmallFont.TLabel").pack(anchor="center")
 
 # 最前面固定のチェックボックスを追加
@@ -1025,14 +1180,12 @@ is_topmost = tk.BooleanVar(value=True)  # 初期値は「True」（最前面固�
 # 最前面固定のチェックボックスを追加（tk.Checkbuttonを使用）
 tk.Checkbutton(scrollable_frame, text="ウィンドウを最前面に固定", variable=is_topmost, command=toggle_topmost, bg=background_color).pack(anchor="center", pady=(5, 10))
 
-
 # + ボタンで範囲を追加
 add_range_fields()
 
 # 結果のメッセージを表示するラベル
 message_label = ttk.Label(scrollable_frame, text="")
 message_label.pack(anchor="center")
-
 
 # ウィンドウを表示させる
 root.iconbitmap(logo)  # アイコンファイルのパスを設定
